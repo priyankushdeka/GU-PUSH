@@ -74,7 +74,7 @@ const checkForNewNotices = async () => {
 
     for (const notice of latestNotices) {
         console.log('Checking notice:', notice);
-        if (notice.date === testDate && !sentNotifications.some(n => n.title === notice.title)) {
+        if (notice.date === currentDate && !sentNotifications.some(n => n.title === notice.title)) {
             await sendPushNotification(notice);
             sentNotifications.push({ title: notice.title, date: new Date() });
             console.log('Notification sent for:', notice.title);
