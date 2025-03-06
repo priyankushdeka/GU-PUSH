@@ -88,5 +88,5 @@ const checkForNewNotices = async () => {
 
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
-    setInterval(checkForNewNotices, 1 * 60 * 1000);
+    setInterval(checkForNewNotices, 5 * 60 * 1000);
 });
