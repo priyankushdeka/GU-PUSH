@@ -2,13 +2,32 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const dotenv = require('dotenv');
+const fs = require('fs').promises;
+const path = require('path');
 
 // Load environment variables
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const TOKENS_FILE = path.join(__dirname, 'tokens.txt');
 let expoPushTokens = [];
+let sentNotifications = [];
+
+// Load tokens from file on startup
+const loadTokens = async () => {
+  try {
+    const data = await fs.readFile(TOKENS_FILE, 'utf8');
+    let lines = data.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const uniqueTokens = [...new Set(lines)];
+    expoPushTokens = uniqueTokens;
+    // Overwrite the file with unique tokens to prevent duplicates
+    await fs.writeFile(TOKENS_FILE, uniqueTokens.join('\n') + '\n');
+  } catch (err) {
+    console.error('Error loading tokens, starting with empty array:', err);
+    expoPushTokens = [];
+  }
+};
 
 app.use(express.json());
 
@@ -16,17 +35,23 @@ app.get('/', (req, res) => {
     res.send('Push Notifications is working !');
 });
 
-app.post("/save-token", (req, res) => {
+app.post("/save-token", async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).send("Token is required");
 
     if (!expoPushTokens.includes(token)) {
         expoPushTokens.push(token);
+        try {
+            await fs.appendFile(TOKENS_FILE, token + '\n');
+            res.status(201).send("Token saved successfully");
+        } catch (err) {
+            console.error('Failed to save token to file:', err);
+            res.status(500).send('Failed to save token');
+        }
+    } else {
+        res.status(200).send("Token already exists");
     }
-    res.status(201).send("Token saved successfully");
 });
-
-let sentNotifications = [];
 
 const fetchLatestNotices = async () => {
     try {
@@ -86,7 +111,11 @@ const checkForNewNotices = async () => {
     sentNotifications = sentNotifications.filter(notification => notification.date > oneDayAgo);
 };
 
-app.listen(PORT, () => {
+// Initialize tokens and start server
+(async () => {
+  await loadTokens();
+  app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
     setInterval(checkForNewNotices, 5 * 60 * 1000);
-});
+  });
+})();
